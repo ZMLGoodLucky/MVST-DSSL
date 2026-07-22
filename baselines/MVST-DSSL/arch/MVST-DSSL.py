@@ -307,76 +307,7 @@ class CausalPropagationAdjacency(nn.Module):
 # 2. 有向图注意力层 (Directed Graph Attention Layer)
 # ==============================================================================
 
-class DirectedGraphAttentionLayer(nn.Module):
-    """
-    专为有向图设计的注意力层。
-    与标准GAT不同，它区分"入边"和"出边"的影响。
-    """
 
-    def __init__(self, model_dim, num_heads, dropout):
-        super().__init__()
-        assert model_dim % num_heads == 0, "model_dim 必须能被 num_heads 整除"
-        self.num_heads = num_heads
-        self.head_dim = model_dim // num_heads
-        self.model_dim = model_dim
-
-        # 分别为入边和出边设计变换
-        self.q_proj = nn.Linear(model_dim, model_dim)  # Query (接收方)
-        self.k_proj_in = nn.Linear(model_dim, model_dim)  # Key (发送方 → 我)
-        self.v_proj_in = nn.Linear(model_dim, model_dim)  # Value (发送方 → 我)
-
-        self.out_proj = nn.Linear(model_dim, model_dim)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x, directed_adj):
-        """
-        :param x: 输入张量 (BT, N, D)
-        :param directed_adj: 有向邻接矩阵 (BT, N, N) 或 (B, N, N)
-                            directed_adj[i, j] 表示 j → i 的因果强度
-        :return: 输出张量 (BT, N, D)
-        """
-        BT, N, D = x.shape
-
-        # 1. 计算 Q, K, V
-        q = self.q_proj(x).reshape(BT, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        k_in = self.k_proj_in(x).reshape(BT, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-        v_in = self.v_proj_in(x).reshape(BT, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
-
-        # 2. 计算注意力分数（入边：谁影响我）
-        scores = torch.matmul(q, k_in.transpose(-2, -1)) / math.sqrt(self.head_dim)  # (BT, H, N, N)
-
-        # 3. 应用有向邻接矩阵作为掩码
-        # directed_adj[i, j] > 0 表示存在 j → i 的因果边
-        if directed_adj.dim() == 2:
-            adj_mask = (directed_adj == 0).unsqueeze(0).unsqueeze(0)
-        elif directed_adj.dim() == 3:
-            adj_mask = (directed_adj == 0).unsqueeze(1)
-        else:
-            raise ValueError("邻接矩阵维度错误")
-
-        # 掩码处理
-        scores = scores.masked_fill(adj_mask, float('-inf'))
-
-        # 4. 计算注意力权重（使用有向图权重增强）
-        attn_weights = F.softmax(scores, dim=-1)
-
-        # *** 核心创新：用因果强度加权注意力 ***
-        if directed_adj.dim() == 2:
-            causal_weights = directed_adj.unsqueeze(0).unsqueeze(0)
-        else:
-            causal_weights = directed_adj.unsqueeze(1)
-        attn_weights = attn_weights * causal_weights
-
-        # 重新归一化
-        attn_weights = attn_weights / (attn_weights.sum(dim=-1, keepdim=True) + 1e-8)
-        attn_weights = self.dropout(attn_weights)
-
-        # 5. 计算上下文向量
-        context = torch.matmul(attn_weights, v_in)
-        context = context.permute(0, 2, 1, 3).reshape(BT, N, self.model_dim)
-        output = self.out_proj(context)
-
-        return output
 
 # ==============================================================================
 # 1. 视角邻接矩阵生成器 (View Adjacency Generators)
