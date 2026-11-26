@@ -86,15 +86,4 @@ For each locally reproduced model-dataset combination, the run manifest should i
 
 For a published result, record the paper, table and dataset-specific protocol instead of inventing a local training configuration. Upstream reference defaults must be distinguished from effective run parameters.
 
-## 5. LargeST reference protocol
-
-The manuscript describes SD (716 nodes) and GBA (2,352 nodes) using 2019 data at 15-minute resolution, chronological 6:2:2 splits, 12 input and 12 prediction steps, and MAE/RMSE/MAPE averaged over the forecast horizons. Data preparation entry points: [SD](../scripts/data_preparation/SD/generate_training_data.py), [GBA](../scripts/data_preparation/GBA/generate_training_data.py).
-
-Reference results are attributed to the [LargeST benchmark](https://github.com/liuxu77/LargeST) for DCRNN, STGCN, ASTGCN, GWNet, STGODE and DSTAGNN; the MAGE paper for STAEformer; and the respective papers for PatchSTG, MAGE and RAST. See the manuscript appendix for the source attribution and the qualification concerning RAST's split descriptions. These reference results are not represented as local baseline reruns.
-
-- [LargeST paper](https://arxiv.org/abs/2306.08259)
-- [PatchSTG paper](https://arxiv.org/abs/2412.09972)
-- [MAGE paper](https://proceedings.neurips.cc/paper_files/paper/2025/hash/54c9bfb0885ae07f23607f617ab64c2b-Abstract-Conference.html)
-- [RAST paper](https://arxiv.org/abs/2508.16623)
-
 This index supports locating reference settings; it does not substitute for the effective experiment manifests or independently validate the reported results.
